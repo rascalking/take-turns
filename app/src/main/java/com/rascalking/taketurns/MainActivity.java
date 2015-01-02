@@ -1,5 +1,6 @@
 package com.rascalking.taketurns;
 
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
@@ -9,19 +10,29 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 
 public class MainActivity extends ActionBarActivity {
-    private ArrayList<String> kids;
-    private ListView listView;
+    public static final String PREFS_NAME = "com.rascalking.taketurns.kids";
+    public static final String DEFAULT_KIDS_JSON = "[\"Juliet\", \"Cole\", \"Genevieve\"]";
+    public static final String PREFS_KEY = "kids";
+
     private ArrayAdapter<String> adapter;
+    private List<String> kids;
+    private ListView listView;
+    private ObjectMapper mapper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        mapper = new ObjectMapper();
         getKidsList();
         getViews();
         setListeners();
@@ -50,11 +61,36 @@ public class MainActivity extends ActionBarActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    @Override
+    protected void onStop(){
+        super.onStop();
+        storeKids();
+    }
+
+    private void storeKids() {
+        // We need an Editor object to make preference changes.
+        // All objects are from android.context.Context
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, 0);
+        SharedPreferences.Editor editor = prefs.edit();
+        try {
+            String kidsJson = mapper.writeValueAsString(kids);
+            editor.putString(PREFS_KEY, kidsJson);
+            editor.commit();
+        }
+        catch (IOException e) {
+
+        }
+    }
+
     private void getKidsList() {
-        kids = new ArrayList<String>();
-        kids.add("Juliet");
-        kids.add("Cole");
-        kids.add("Genevieve");
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, 0);
+        String kidsJson = prefs.getString(PREFS_KEY, DEFAULT_KIDS_JSON);
+        try {
+            kids = mapper.readValue(kidsJson, List.class);
+        }
+        catch (IOException e) {
+            kids = new ArrayList<>();
+        }
     }
 
     private void getViews() {
@@ -62,9 +98,9 @@ public class MainActivity extends ActionBarActivity {
     }
 
     private void setAdapters() {
-        adapter = new ArrayAdapter<String>(this,
-                android.R.layout.simple_list_item_1,
-                kids);
+        adapter = new ArrayAdapter<>(this,
+                                     android.R.layout.simple_list_item_1,
+                                     kids);
         listView.setAdapter(adapter);
     }
 
